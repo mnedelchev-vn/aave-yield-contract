@@ -20,7 +20,6 @@ Yield project created on the **Rinkeby network**. Deposits & withdrawals are hap
 * ```npm install``` - Downloading required packages.
 * ```npx hardhat run scripts/deploy.js --network rinkeby``` - Deploying the contract on the Rinkeby network.
 * ```npx hardhat test --network rinkeby``` - Firing the tests on the Rinkeby network.
-* ```slither . --json slither.txt``` - slither.txt report already exist in the root, but if for whatever reason the report has to be generated again it can be achieved with this command.
 
 #### FYI:
 There are dummy private key ( with 1 rETH ) and Rinkeby node at the ```hardhat.config.js```.
