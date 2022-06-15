@@ -4,7 +4,7 @@ Yield project created on the **Rinkeby network**. Deposits & withdrawals are hap
 
 #### Deposits breakdown ( buyAndDeposit method ):
 * The ```msg.sender``` is passing X amount of ETH value.
-* The method is calculating how much USDC token can be purchased for the passed ETH value.
+* The method is calculating how much USDC token can be purchased from Uniswap V3 for the passed ETH value.
 * The method is buying USDC token equivalent of the passed ETH value from Uniswap V3.
 * The method is depositing the USDC tokens on behalf of the ```msg.sender``` to Aave platform using the ```Aave.supply()``` method.
 
