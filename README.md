@@ -2,13 +2,13 @@
 
 Yield project created on the **Rinkeby network**. Deposits & withdrawals are happening with **Uniswap V3: Router2** and **Aave** contracts integrations.
 
-##### Deposits breakdown ( buyAndDeposit method ):
+#### Deposits breakdown ( buyAndDeposit method ):
 * The ```msg.sender``` is passing X amount of ETH value.
 * The method is calculating how much USDC token can be purchased for the passed ETH value.
 * The method is buying USDC token equivalent of the passed ETH value from Uniswap V3.
 * The method is depositing the USDC tokens on behalf of the ```msg.sender``` to Aave platform using the ```Aave.supply()``` method.
 
-##### Withdrawals breakdown ( withdraw() & withdraw(uint256) methods ):
+#### Withdrawals breakdown ( withdraw() & withdraw(uint256) methods ):
 * The ```msg.sender``` is passing what amount of USDC he wishes to withdraw.
 * The method is withdrawing the USDC tokens from Aave platform using the ```Aave.withdraw()``` method.
 * The method is calculating how much ETH value can be purchased for the withdrawn USDC tokens from Aave.
