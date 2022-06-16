@@ -1,4 +1,4 @@
-# Yield strategy contract
+# Aave yield strategy contract
 
 Yield project created on the **Rinkeby network**. Deposits & withdrawals are happening with **Uniswap V3: Router2** and **Aave** contracts integrations.
 
