@@ -3,6 +3,54 @@ pragma solidity 0.8.0;
 
 import "./Ownable.sol";
 
+
+interface IWETH {
+    function withdraw(uint wad) external;
+}
+
+
+interface IUSDC {
+    function approve(address spender, uint256 amount) external returns (bool);
+}
+
+
+interface ISwapRouter {
+    function exactInputSingle(ExactInputSingleParams calldata params) external payable returns (uint256 amountOut);
+
+    function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts);
+
+    struct ExactInputSingleParams {
+        address tokenIn;
+        address tokenOut;
+        uint24 fee;
+        address recipient;
+        uint256 amountIn;
+        uint256 amountOutMinimum;
+        uint160 sqrtPriceLimitX96;
+    }
+}
+
+
+interface IQuoter {
+    function quoteExactInputSingle(
+        address tokenIn,
+        address tokenOut,
+        uint24 fee,
+        uint256 amountIn,
+        uint160 sqrtPriceLimitX96
+    ) external returns (uint256 amountOut);
+}
+
+
+interface IAave {
+    function supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
+
+    function withdraw(address asset, uint256 amount, address to) external returns (uint256);
+
+    function getUserAccountData(address user) external view returns (uint256 totalCollateralBase);
+}
+
+
 contract YieldContract is Ownable {
     address public wethAddress;
     IWETH wethInstance;
@@ -200,48 +248,6 @@ contract YieldContract is Ownable {
      */
     receive() external payable {}
     // ===================================== /CONTRACT BODY =====================================
-}
-
-interface IWETH {
-    function withdraw(uint wad) external;
-}
-
-interface IUSDC {
-    function approve(address spender, uint256 amount) external returns (bool);
-}
-
-interface ISwapRouter {
-    function exactInputSingle(ExactInputSingleParams calldata params) external payable returns (uint256 amountOut);
-
-    function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts);
-
-    struct ExactInputSingleParams {
-        address tokenIn;
-        address tokenOut;
-        uint24 fee;
-        address recipient;
-        uint256 amountIn;
-        uint256 amountOutMinimum;
-        uint160 sqrtPriceLimitX96;
-    }
-}
-
-interface IQuoter {
-    function quoteExactInputSingle(
-        address tokenIn,
-        address tokenOut,
-        uint24 fee,
-        uint256 amountIn,
-        uint160 sqrtPriceLimitX96
-    ) external returns (uint256 amountOut);
-}
-
-interface IAave {
-    function supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
-
-    function withdraw(address asset, uint256 amount, address to) external returns (uint256);
-
-    function getUserAccountData(address user) external view returns (uint256 totalCollateralBase);
 }
 
 // MN bby ¯\_(ツ)_/¯
