@@ -66,11 +66,10 @@ contract YieldContract is Ownable {
 
     IQuoter quoterInstance;
 
+    bool public depositsStopped = false;
     uint8 public withdrawFee = 2;
     uint16 public uniswapSlippage = 20;
     uint24 public uniswapFee = 3000;
-    bool public depositsStopped = false;
-    uint160 public uniswapPriceLimit = 0;
     uint256 public minDeposit = 10000000000000;
     mapping(address => uint256) public depositors;
 
@@ -133,12 +132,10 @@ contract YieldContract is Ownable {
     function setContractParams(
         uint8 _withdrawFee, 
         uint24 _uniswapFee, 
-        uint160 _uniswapPriceLimit, 
         uint256 _minDeposit
     ) external onlyOwner {
         withdrawFee = _withdrawFee;
         uniswapFee = _uniswapFee;
-        uniswapPriceLimit = _uniswapPriceLimit;
         minDeposit = _minDeposit;
     }
     // ==================================== /CONTRACT ADMIN ====================================
@@ -163,7 +160,7 @@ contract YieldContract is Ownable {
         uint256 amountOutMinimum = (quoteAmountOut * (100 - uniswapSlippage)) / 100;
 
         // Uniswap purchase
-        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({tokenIn : wethAddress, tokenOut : usdcAddress, fee : uniswapFee, recipient : address(this), amountIn : msg.value, amountOutMinimum : amountOutMinimum, sqrtPriceLimitX96 : uniswapPriceLimit});
+        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({tokenIn : wethAddress, tokenOut : usdcAddress, fee : uniswapFee, recipient : address(this), amountIn : msg.value, amountOutMinimum : amountOutMinimum, sqrtPriceLimitX96 : 0});
         uint256 amountOut = swapRouter.exactInputSingle{value : msg.value}(params);
 
         // Aave USDC deposit
@@ -217,7 +214,7 @@ contract YieldContract is Ownable {
         uint256 amountOutMinimum = (quoteAmountOut * (100 - uniswapSlippage)) / 100;
 
         // Uniswap sale
-        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({tokenIn : usdcAddress, tokenOut : wethAddress, fee : uniswapFee, recipient : address(this), amountIn : withdrawnAmount, amountOutMinimum : amountOutMinimum, sqrtPriceLimitX96 : uniswapPriceLimit});
+        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({tokenIn : usdcAddress, tokenOut : wethAddress, fee : uniswapFee, recipient : address(this), amountIn : withdrawnAmount, amountOutMinimum : amountOutMinimum, sqrtPriceLimitX96 : 0});
         uint256 amountOut = swapRouter.exactInputSingle(params);
         
         // swap WETH for ETH
