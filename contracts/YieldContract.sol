@@ -1,52 +1,52 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.0;
 
-import './Ownable.sol';
+import "./Ownable.sol";
 
 contract YieldContract is Ownable {
-    address WETH_address;
-    IWETH WETH;
+    address public wethAddress;
+    IWETH wethInstance;
 
-    address USDC_address;
-    IUSDC USDC;
+    address public usdcAddress;
+    IUSDC usdcInstance;
 
-    address SwapRouter_address;
-    ISwapRouter SwapRouter;
+    address public swapRouterAddress;
+    ISwapRouter swapRouter;
 
-    address Aave_address;
-    IAave Aave;
+    address public aaveAddress;
+    IAave aaveInstance;
 
-    IQuoter Quoter;
+    IQuoter quoterInstance;
 
-    uint8 public WITHDRAW_FEE = 2;
-    uint16 public UNISWAP_SLIPPAGE = 20;
-    uint24 public UNISWAP_FEE = 3000;
-    uint160 public UNISWAP_SQRT_PRICE_LIMIT_x96 = 0;
-    bool public DEPOSITS_STOPPED = false;
-    uint256 public MIN_DEPOSIT = 10000000000000;
+    uint8 public withdrawFee = 2;
+    uint16 public uniswapSlippage = 20;
+    uint24 public uniswapFee = 3000;
+    bool public depositsStopped = false;
+    uint160 public uniswapPriceLimit = 0;
+    uint256 public minDeposit = 10000000000000;
     mapping(address => uint256) public depositors;
 
     /**
-     * Sets maximum allowance of `Aave_address` over the contract USDC tokens.
-     * Sets maximum allowance of `SwapRouter_address` over the contract USDC tokens.
+     * Sets maximum allowance of `aaveAddress` over the contract USDC tokens.
+     * Sets maximum allowance of `swapRouterAddress` over the contract USDC tokens.
      */
-    constructor(address _WETH_address, address _USDC_address, address _SwapRouter_address, address _Aave_address, address _Quoter_address) {
-        USDC.approve(Aave_address, 115792089237316195423570985008687907853269984665640564039457584007913129639935);
-        USDC.approve(SwapRouter_address, 115792089237316195423570985008687907853269984665640564039457584007913129639935);
+    constructor(address _wethAddress, address _usdcAddress, address _swapRouterAddress, address _aaveAddress, address _quoterAddress) {
+        wethAddress = _wethAddress;
+        wethInstance = IWETH(wethAddress);
 
-        WETH_address = _WETH_address;
-        WETH = IWETH(_WETH_address);
+        usdcAddress = _usdcAddress;
+        usdcInstance = IUSDC(_usdcAddress);
 
-        USDC_address = _USDC_address;
-        USDC = IUSDC(_USDC_address);
+        swapRouterAddress = _swapRouterAddress;
+        swapRouter = ISwapRouter(_swapRouterAddress);
 
-        SwapRouter_address = _SwapRouter_address;
-        SwapRouter = ISwapRouter(_SwapRouter_address);
+        aaveAddress = _aaveAddress;
+        aaveInstance = IAave(_aaveAddress);
 
-        Aave_address = _Aave_address;
-        Aave = IAave(_Aave_address);
+        quoterInstance = IQuoter(_quoterAddress);
 
-        Quoter = IQuoter(_Quoter_address);
+        usdcInstance.approve(aaveAddress, 115792089237316195423570985008687907853269984665640564039457584007913129639935);
+        usdcInstance.approve(swapRouterAddress, 115792089237316195423570985008687907853269984665640564039457584007913129639935);
     }
 
     // ==================================== EVENTS ====================================
@@ -57,7 +57,7 @@ contract YieldContract is Ownable {
 
     // ==================================== MODIFIERS ====================================
     modifier ifDepositsStopped() {
-        require(!DEPOSITS_STOPPED, "ERROR: deposits are stopped.");
+        require(!depositsStopped, "ERROR: deposits are stopped.");
         _;
     }
     // ==================================== /MODIFIERS ====================================
@@ -67,23 +67,31 @@ contract YieldContract is Ownable {
      * Serve as contract circuit breaker.
      */
     function stopUnstopDeposits() external onlyOwner {
-        if (!DEPOSITS_STOPPED) {
-            DEPOSITS_STOPPED = true;
+        if (!depositsStopped) {
+            depositsStopped = true;
         } else {
-            DEPOSITS_STOPPED = false;
+            depositsStopped = false;
         }
     }
 
-    function editApprovals(uint256 _aave_approval, uint256 _uniswap_approval) external onlyOwner {
-        USDC.approve(Aave_address, _aave_approval);
-        USDC.approve(SwapRouter_address, _uniswap_approval);
+    function editApprovals(
+        uint256 _aaveApproval, 
+        uint256 _uniswapApproval
+    ) external onlyOwner {
+        usdcInstance.approve(aaveAddress, _aaveApproval);
+        usdcInstance.approve(swapRouterAddress, _uniswapApproval);
     }
 
-    function setContractParams(uint8 _WITHDRAW_FEE, uint24 _UNISWAP_FEE, uint160 _UNISWAP_SQRT_PRICE_LIMIT_x96, uint256 _MIN_DEPOSIT) external onlyOwner {
-        WITHDRAW_FEE = _WITHDRAW_FEE;
-        UNISWAP_FEE = _UNISWAP_FEE;
-        UNISWAP_SQRT_PRICE_LIMIT_x96 = _UNISWAP_SQRT_PRICE_LIMIT_x96;
-        MIN_DEPOSIT = _MIN_DEPOSIT;
+    function setContractParams(
+        uint8 _withdrawFee, 
+        uint24 _uniswapFee, 
+        uint160 _uniswapPriceLimit, 
+        uint256 _minDeposit
+    ) external onlyOwner {
+        withdrawFee = _withdrawFee;
+        uniswapFee = _uniswapFee;
+        uniswapPriceLimit = _uniswapPriceLimit;
+        minDeposit = _minDeposit;
     }
     // ==================================== /CONTRACT ADMIN ====================================
 
@@ -95,23 +103,23 @@ contract YieldContract is Ownable {
      *
      * Requirements:
      *
-     * - `msg.value` has to be equal or greater than `MIN_DEPOSIT`.
+     * - `msg.value` has to be equal or greater than `minDeposit`.
      * - `msg.sender` cannot be the zero address.
      */
     function buyAndDeposit() external payable ifDepositsStopped {
-        require(msg.value >= MIN_DEPOSIT, "ERROR: Not enough ETH deposit.");
+        require(msg.value >= minDeposit, "ERROR: INVALID_ETH_DEPOSIT");
 
         // calculate Uniswap amountOutMinimum to prevent sandwich attack
-        uint256 quoteAmountOut = Quoter.quoteExactInputSingle(WETH_address, USDC_address, UNISWAP_FEE, msg.value, 0);
-        require(quoteAmountOut > 0, "ERROR: failed predicting uniswap trade outcome.");
-        uint256 amountOutMinimum = (quoteAmountOut * (100 - UNISWAP_SLIPPAGE)) / 100;
+        uint256 quoteAmountOut = quoterInstance.quoteExactInputSingle(wethAddress, usdcAddress, uniswapFee, msg.value, 0);
+        require(quoteAmountOut > 0, "ERROR: FAILED_quoteAmountOut");
+        uint256 amountOutMinimum = (quoteAmountOut * (100 - uniswapSlippage)) / 100;
 
         // Uniswap purchase
-        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({tokenIn : WETH_address, tokenOut : USDC_address, fee : UNISWAP_FEE, recipient : address(this), amountIn : msg.value, amountOutMinimum : amountOutMinimum, sqrtPriceLimitX96 : UNISWAP_SQRT_PRICE_LIMIT_x96});
-        uint256 amountOut = SwapRouter.exactInputSingle{value : msg.value}(params);
+        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({tokenIn : wethAddress, tokenOut : usdcAddress, fee : uniswapFee, recipient : address(this), amountIn : msg.value, amountOutMinimum : amountOutMinimum, sqrtPriceLimitX96 : uniswapPriceLimit});
+        uint256 amountOut = swapRouter.exactInputSingle{value : msg.value}(params);
 
         // Aave USDC deposit
-        Aave.supply(USDC_address, amountOut, address(this), 0);
+        aaveInstance.supply(usdcAddress, amountOut, address(this), 0);
 
         depositors[msg.sender] += amountOut;
 
@@ -143,31 +151,34 @@ contract YieldContract is Ownable {
      *
      * - `_amount` cannot be zero and has to be equal or smaller to user deposit stake.
      */
-    function _withdraw(uint256 _amount, address _address) internal {
-        require(_amount <= depositors[_address] && _amount != 0, "ERROR: Invalid amount.");
+    function _withdraw(
+        uint256 _amount, 
+        address _address
+    ) internal {
+        require(_amount <= depositors[_address] && _amount != 0, "ERROR: INVALID_AMOUNT");
 
         depositors[_address] -= _amount;
 
         // Aave USDC withdraw
-        uint256 withdrawnAmount = Aave.withdraw(USDC_address, _amount, address(this));
-        require(withdrawnAmount == _amount, "ERROR: Aave withdraw failed.");
+        uint256 withdrawnAmount = aaveInstance.withdraw(usdcAddress, _amount, address(this));
+        require(withdrawnAmount == _amount, "ERROR: AAVE_FAILED");
 
         // calculate Uniswap amountOutMinimum to prevent sandwich attack
-        uint256 quoteAmountOut = Quoter.quoteExactInputSingle(USDC_address, WETH_address, UNISWAP_FEE, withdrawnAmount, 0);
-        require(quoteAmountOut > 0, "ERROR: failed predicting uniswap trade outcome.");
-        uint256 amountOutMinimum = (quoteAmountOut * (100 - UNISWAP_SLIPPAGE)) / 100;
+        uint256 quoteAmountOut = quoterInstance.quoteExactInputSingle(usdcAddress, wethAddress, uniswapFee, withdrawnAmount, 0);
+        require(quoteAmountOut > 0, "ERROR: FAILED_quoteAmountOut");
+        uint256 amountOutMinimum = (quoteAmountOut * (100 - uniswapSlippage)) / 100;
 
         // Uniswap sale
-        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({tokenIn : USDC_address, tokenOut : WETH_address, fee : UNISWAP_FEE, recipient : address(this), amountIn : withdrawnAmount, amountOutMinimum : amountOutMinimum, sqrtPriceLimitX96 : UNISWAP_SQRT_PRICE_LIMIT_x96});
-        uint256 amountOut = SwapRouter.exactInputSingle(params);
+        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({tokenIn : usdcAddress, tokenOut : wethAddress, fee : uniswapFee, recipient : address(this), amountIn : withdrawnAmount, amountOutMinimum : amountOutMinimum, sqrtPriceLimitX96 : uniswapPriceLimit});
+        uint256 amountOut = swapRouter.exactInputSingle(params);
         
         // swap WETH for ETH
-        WETH.withdraw(amountOut);
+        wethInstance.withdraw(amountOut);
 
         // charge the user with withdraw fee and send it to the owner of the contract
-        uint256 withdrawFee = (amountOut * WITHDRAW_FEE) / 100;
-        if (0 < withdrawFee) {
-            payable(owner()).transfer(withdrawFee);
+        uint256 _withdrawFee = (amountOut * withdrawFee) / 100;
+        if (0 < _withdrawFee) {
+            payable(owner()).transfer(_withdrawFee);
         }
 
         // Send back to the user the ETH amount from the USDC sale on Uniswap MINUS the withdraw fee
@@ -180,7 +191,7 @@ contract YieldContract is Ownable {
      * Returns the total amount of deposited USDC in Aave.
      */
     function getTotalCollateralBase() view public returns (uint256) {
-        (uint256 totalCollateralBase) = Aave.getUserAccountData(address(this));
+        (uint256 totalCollateralBase) = aaveInstance.getUserAccountData(address(this));
         return totalCollateralBase;
     }
 
